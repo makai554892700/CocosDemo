@@ -1,5 +1,5 @@
+import {_decorator, Button, Component, director, Label, Sprite} from 'cc';
 
-import { _decorator, Component, Node, director, ProgressBar, Label, Sprite } from 'cc';
 const { ccclass, property } = _decorator;
 
 
@@ -7,28 +7,39 @@ const { ccclass, property } = _decorator;
 @ccclass('Launch')
 export class Launch extends Component {
 
+    @property({ type: Button, visible: true })
+    private startButton: Button = null!;
     @property({ type: Sprite, visible: true })
     private loadingBack: Sprite = null!;
     @property({ type: Sprite, visible: true })
     private loadingLine: Sprite = null!;
     @property({ type: Label, visible: true })
     private loadingText: Label = null!;
-    private totalTime: number = 15;
-    private currentTime: number = 0;
+    private totalLoading: number = 10;
+    private currentLoading: number = 0;
 
 
     start() {
         console.log("Launch start.");
+        this.loadingBack.node.active = true;
+        this.startButton.node.active = false;
+        this.updateLoading().then(r => {});
     }
 
     update(deltaTime: number) {
-        let ratio = this.currentTime / this.totalTime;
-        this.loadingLine.fillRange = ratio;
-        this.loadingText.string = "loading..." + this.currentTime + "/" + this.totalTime;
-        this.currentTime += deltaTime;
-        if (this.currentTime > this.totalTime) {
-            this.currentTime = 0;
-            console.log("currentTime = 0");
+    }
+
+    private async updateLoading() {
+        this.loadingLine.fillRange = this.currentLoading / this.totalLoading;
+        this.currentLoading += 1;
+        this.loadingText.string = "loading..." + this.currentLoading + "/" + this.totalLoading;
+        if (this.currentLoading >= this.totalLoading) {
+            this.loadingBack.node.active = false;
+            this.startButton.node.active = true;
+        } else {
+            this.scheduleOnce(function () {
+                this.updateLoading();
+            }, 1);
         }
     }
 
