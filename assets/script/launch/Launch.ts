@@ -3,7 +3,7 @@ import {_decorator, Button, Component, director, Label, Sprite} from 'cc';
 const { ccclass, property } = _decorator;
 
 
- 
+
 @ccclass('Launch')
 export class Launch extends Component {
 
@@ -19,7 +19,6 @@ export class Launch extends Component {
     private currentLoading: number = 0;
 
     start() {
-        console.log("Launch start.");
         this.loadingBack.node.active = true;
         this.startButton.node.active = false;
         this.updateLoading().then(r => {});
