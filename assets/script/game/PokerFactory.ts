@@ -18,10 +18,10 @@ export class PokerFactory extends Component {
     }
 
     public value2Name(pokerValue: number) {
-        if (pokerValue == 516) {
+        if (pokerValue == 518) {
             return "xw";
         }
-        if (pokerValue == 517) {
+        if (pokerValue == 519) {
             return "dw";
         }
         const pokerTypes = ['hot', 'ht', 'f', 'm'];

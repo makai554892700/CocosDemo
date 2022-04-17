@@ -17,6 +17,9 @@ export class Poker extends Component {
         this.backSp = backSp;
         this.valueSp = valueSp;
         this.sprite = this.node.getComponent(Sprite);
+        if (this.valueSp.name == "dw" || this.valueSp.name == "xw") {
+            this.sprite.node.setScale(0.87, 0.87);
+        }
     }
 
     public showBackground() {
