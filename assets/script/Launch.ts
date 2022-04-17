@@ -15,9 +15,8 @@ export class Launch extends Component {
     private loadingLine: Sprite = null!;
     @property({ type: Label, visible: true })
     private loadingText: Label = null!;
-    private totalLoading: number = 10;
+    private totalLoading: number = 3;
     private currentLoading: number = 0;
-
 
     start() {
         console.log("Launch start.");
