@@ -21,6 +21,7 @@ export class UserInfo extends Component {
     private less_poker_left_text: Label = null!;
     private less_poker_right: Sprite = null!;
     private less_poker_right_text: Label = null!;
+    private landlord_back: Sprite = null!;
 
     public init(userType: number, userName: string, lessTime: number, havePoker: number, userHead: SpriteFrame) {
         UserInfo.instance = this;
@@ -32,7 +33,7 @@ export class UserInfo extends Component {
         this.lessTime = lessTime;
         this.havePoker = havePoker;
         this.userHead = userHead;
-        this.user_name = this.node.getChildByName("user_name").getComponent(Label);
+        this.user_name = this.node.getChildByName("head_back").getChildByName("user_name").getComponent(Label);
         this.user_name.string = userName;
 
         this.clock_left = this.node.getChildByName("clock_left").getComponent(Sprite);
@@ -47,11 +48,12 @@ export class UserInfo extends Component {
 
         this.head_image = this.node.getChildByName("head_back").getChildByName("head_image").getComponent(Sprite);
         this.head_image.spriteFrame = userHead;
-        this.updateUI(lessTime, havePoker);
+        this.landlord_back = this.node.getChildByName("head_back").getChildByName("landlord_back").getComponent(Sprite);
+        this.updateUI(lessTime, havePoker, false);
     }
 
 
-    public updateUI(lessTime: number, havePoker: number) {
+    public updateUI(lessTime: number, havePoker: number, landlord: boolean) {
         this.lessTime = lessTime;
         this.havePoker = havePoker;
         if (this.lessTime == 0) {
@@ -67,6 +69,11 @@ export class UserInfo extends Component {
         } else {
             this.less_poker_left.node.active = true;
             this.less_poker_right.node.active = true;
+        }
+        if (landlord) {
+            this.landlord_back.node.active = true;
+        } else {
+            this.landlord_back.node.active = false;
         }
         this.clock_left_text.string = "" + this.lessTime;
         this.clock_right_text.string = "" + this.lessTime;

@@ -52,8 +52,12 @@ export class Game extends Component {
     private leftButtonText: Label = null!;
     @property({type: Label, visible: true})
     private rightButtonText: Label = null!;
+    @property({type: Sprite, visible: true})
+    private resultFail: Sprite = null!;
+    @property({type: Sprite, visible: true})
+    private resultVictory: Sprite = null!;
     private gameState = 3;                  // 0 轮到我 / 1 轮到下家 /  2 轮到上家 / 3 等待开始(未准备) / 4 等待开始(已准备) / 5 发牌中 / 6 游戏失败结束 / 7 游戏胜利结束
-    private lastGameState = 3;
+    private lastGameState = -1;
     private lessTime = -1;                  // 当前出牌者剩余出牌时间
     private currentPokers: Poker[] = [];    // 当前出的牌
     private currentPokerBelong: number = -1;    // 最后出牌者
@@ -68,13 +72,8 @@ export class Game extends Component {
         this.lastGameState = this.gameState;
         if (this.gameState == 3) {
             this.gameState = 4;
-            this.leftButtonText.string = "取消准备";
-            this.rightButton.node.active = true;
-            this.rightButtonText.string = "开始";
         } else if (this.gameState == 4) {
             this.gameState = 3;
-            this.leftButtonText.string = "准备";
-            this.rightButton.node.active = false;
         }
         this.updateUI();
     }
@@ -85,23 +84,19 @@ export class Game extends Component {
             this.playPoker();
         } else if (this.gameState == 4) {
             this.gameState = 5;
-            this.leftButton.node.active = true;
-            this.rightButton.node.active = true;
-            this.leftButtonText.string = "要不起";
-            this.rightButtonText.string = "出牌";
-            this.restartGame();
-            this.lastGameState = this.gameState;
-            this.gameState = this.landlord;
+            this.updateUI();
         }
     }
 
     private restartGame() {
         this.sendPoker();
-        this.landlord = Math.round(Math.random() * 2);
+        // this.landlord = Math.round(Math.random() * 2);
+        this.landlord = 0;
         this.setLandlord(this.landlord);
-        this.selfUserInfo.updateUI(0, this.selfPokers.length);
-        this.nextUserInfo.updateUI(0, this.nextPokers.length);
-        this.lastUserInfo.updateUI(0, this.lastPokers.length);
+        this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
+        this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
+        this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
+        this.showSelfScope(this.selfPokers);
     }
 
     onLoad() {
@@ -149,8 +144,6 @@ export class Game extends Component {
 
     private enterGame() {
         console.log("enterGame time=" + new Date().getTime());
-        this.clock.node.active = false;
-        this.rightButton.node.active = false;
         this.node.addComponent(PokerFactory).init(this.pokerFrames, this.pokerPrefabs.get("prefab/PokerView"));
         this.pokerNumbers.forEach((pokerNumber: number) => {
             this.pokers.push(PokerFactory.instance.createPoker(pokerNumber));
@@ -163,18 +156,77 @@ export class Game extends Component {
         this.nextUserInfo = UserInfoFactory.instance.createUserInfo(2, "testUserName3", 0
             , this.nextPokers.length, this.headFrames.get("head_3"));
         this.schedule(this.updateUI, 1);
+        this.gameState = 3;
+        this.updateUI();
     }
 
     private updateUI() {
         console.log("gameState=" + this.gameState);
         if (this.lastGameState != this.gameState) {
-            if (this.gameState == 0 || this.gameState == 1 || this.gameState == 2) {
+            let tempGameState = this.lastGameState;
+            this.lastGameState = this.gameState;
+            if (this.gameState < 3) {
                 this.lessTime = 15;
-                if (this.lastGameState == 0) {
+                if (tempGameState == 0) {
                     this.clock.node.active = false;
                 }
+            } else {
+                switch (this.gameState) {
+                    case 3:
+                        this.pokers.forEach((poker: Poker) => {
+                            poker.node.active = false;
+                        });
+                        this.leftButtonText.string = "准备";
+                        this.clock.node.active = false;
+                        this.rightButton.node.active = false;
+                        this.resultFail.node.active = false;
+                        this.resultVictory.node.active = false;
+                        this.selfUserInfo.updateUI(0, 0, false);
+                        this.nextUserInfo.updateUI(0, 0, false);
+                        this.lastUserInfo.updateUI(0, 0, false);
+                        break;
+                    case 4:
+                        this.leftButtonText.string = "取消准备";
+                        this.rightButton.node.active = true;
+                        this.rightButtonText.string = "开始";
+                        break;
+                    case 5:
+                        this.leftButton.node.active = true;
+                        this.rightButton.node.active = true;
+                        this.leftButtonText.string = "要不起";
+                        this.rightButtonText.string = "出牌";
+                        this.restartGame();
+                        this.gameState = this.landlord;
+                        break;
+                    case 6:
+                        this.showSelfScope(this.selfPokers);
+                        this.showNextScope(this.nextPokers);
+                        this.showLastScope(this.lastPokers);
+                        this.resultFail.node.setSiblingIndex(100);
+                        this.resultFail.node.active = true;
+                        break;
+                    case 7:
+                        this.showSelfScope(this.selfPokers);
+                        this.showNextScope(this.nextPokers);
+                        this.showLastScope(this.lastPokers);
+                        this.resultVictory.node.setSiblingIndex(100);
+                        this.resultVictory.node.active = true;
+                        break;
+                }
             }
-            this.lastGameState = this.gameState;
+        }
+        if (this.gameState < 3 && (this.selfPokers.length == 0 || this.nextPokers.length == 0 || this.lastPokers.length == 0)) {
+            if (this.selfPokers.length == 0) {
+                this.gameState = 7;
+            } else {
+                this.gameState = 6;
+            }
+            this.schedule(() => {
+                this.gameState = 3;
+                this.updateUI();
+            }, 5);
+            this.lessTime = -1;
+            this.updateUI();
         }
         switch (this.gameState) {
             case 0:
@@ -183,35 +235,43 @@ export class Game extends Component {
                         this.gameState = 1;
                         this.lessTime = 15;
                         this.clock.node.active = false;
-                        this.selfUserInfo.updateUI(0, this.selfPokers.length);
+                        this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
                     } else {
                         if (!this.clock.node.active) {
                             this.clock.node.active = true;
                         }
                         this.clockText.string = "" + this.lessTime;
-                        this.selfUserInfo.updateUI(this.lessTime--, this.selfPokers.length);
+                        this.selfUserInfo.updateUI(this.lessTime--, this.selfPokers.length, this.landlord == 0);
                     }
                 }
                 break;
             case 1:
                 if (this.lessTime >= 0) {
+                    if (this.lessTime == 13) {
+                        this.commonPlayPoker(1, [this.nextPokers[0]]);
+                        return;
+                    }
                     if (this.lessTime == 0) {
                         this.gameState = 2;
                         this.lessTime = 15;
-                        this.nextUserInfo.updateUI(0, this.nextPokers.length);
+                        this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
                     } else {
-                        this.nextUserInfo.updateUI(this.lessTime--, this.nextPokers.length);
+                        this.nextUserInfo.updateUI(this.lessTime--, this.nextPokers.length, this.landlord == 1);
                     }
                 }
                 break;
             case 2:
                 if (this.lessTime >= 0) {
+                    if (this.lessTime == 13) {
+                        this.commonPlayPoker(2, [this.lastPokers[this.lastPokers.length - 1]]);
+                        return;
+                    }
                     if (this.lessTime == 0) {
                         this.gameState = 0;
                         this.lessTime = 15;
-                        this.lastUserInfo.updateUI(0, this.lastPokers.length);
+                        this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
                     } else {
-                        this.lastUserInfo.updateUI(this.lessTime--, this.lastPokers.length);
+                        this.lastUserInfo.updateUI(this.lessTime--, this.lastPokers.length, this.landlord == 2);
                     }
                 }
                 break;
@@ -219,16 +279,63 @@ export class Game extends Component {
     }
 
     private playPoker() {
-        this.gameState = 1;
+        let choosePokers: Poker[] = [];
+        this.selfPokers.forEach((poker: Poker) => {
+            if (poker.checkValue()) {
+                choosePokers.push(poker);
+            }
+        });
+        this.commonPlayPoker(0, choosePokers);
+    }
+
+    private commonPlayPoker(playUser: number, choosePokers: Poker[]) {
+        if (choosePokers.length == 0) {
+            return;
+        }
+        for (let i = 0; i < this.currentPokers.length; i++) {
+            this.currentPokers[i].node.active = false;
+        }
+        switch (playUser) {
+            case 1:
+                choosePokers.forEach((poker: Poker) => {
+                    this.nextPokers.splice(this.nextPokers.indexOf(poker), 1);
+                });
+                this.showNextScope(choosePokers);
+                this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
+                this.currentPokerBelong = 1;
+                this.gameState = 2;
+                break;
+            case 2:
+                choosePokers.forEach((poker: Poker) => {
+                    this.lastPokers.splice(this.lastPokers.indexOf(poker), 1);
+                });
+                this.showLastScope(choosePokers);
+                this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
+                this.currentPokerBelong = 2;
+                this.gameState = 0;
+                break;
+            default:
+                choosePokers.forEach((poker: Poker) => {
+                    this.selfPokers.splice(this.selfPokers.indexOf(poker), 1);
+                });
+                this.showSelfPlayScope(choosePokers);
+                this.showSelfScope(this.selfPokers);
+                this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
+                this.currentPokerBelong = 0;
+                this.gameState = 1;
+                break;
+        }
+        this.currentPokers = choosePokers;
+        this.lessTime = 15;
         this.updateUI();
     }
 
-    private showPoker() {
-        this.showSelfScope(this.selfPokers);
+    private showSelfPlayScope(pokers: Poker[]) {
+        this.commonShowPoker(pokers, -150, -100, 30);
     }
 
     private showSelfScope(pokers: Poker[]) {
-        this.commonShowPoker(pokers, -450, -400, 21);
+        this.commonShowPoker(pokers, -450, -400, 30);
     }
 
     private showLastScope(pokers: Poker[]) {
@@ -240,6 +347,9 @@ export class Game extends Component {
     }
 
     private commonShowPoker(pokers: Poker[], startXPos: number, startYPos: number, maxIndex: number) {
+        if (pokers.length == 0) {
+            return;
+        }
         pokers.sort((a: Poker, b: Poker) => {
             let valueA: number = a.pokerValue() % 100;
             let valueB: number = b.pokerValue() % 100;
@@ -257,7 +367,7 @@ export class Game extends Component {
                 return 1;
             }
         });
-        let tempZIndex = 100;
+        let tempZIndex = 50;
         let selfXPos = startXPos;
         let selfYPos = startYPos;
         let nextIndex = 0;
