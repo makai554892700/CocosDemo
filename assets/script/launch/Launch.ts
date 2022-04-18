@@ -24,9 +24,6 @@ export class Launch extends Component {
         this.updateLoading().then(r => {});
     }
 
-    update(deltaTime: number) {
-    }
-
     private async updateLoading() {
         this.loadingLine.fillRange = this.currentLoading / this.totalLoading;
         this.currentLoading += 1;
@@ -42,10 +39,8 @@ export class Launch extends Component {
     }
 
     private handleClick() {
-        console.log("handle click.");
         director.loadScene("Home");
     }
-
 
 }
 

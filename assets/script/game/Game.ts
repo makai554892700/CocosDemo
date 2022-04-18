@@ -1,4 +1,4 @@
-import {_decorator, Component, Node, assetManager, AssetManager, SpriteAtlas, Prefab, SpriteFrame} from 'cc';
+import {_decorator, Component, assetManager, AssetManager, Prefab, SpriteFrame, Button} from 'cc';
 import {PokerFactory} from "./PokerFactory";
 import {Poker} from "./Poker";
 
@@ -8,16 +8,22 @@ const {ccclass, property} = _decorator;
 export class Game extends Component {
 
     private gameBundle: AssetManager.Bundle = null!;
-    private pokers = new Map<string, SpriteFrame>();
+    private pokerFrames = new Map<string, SpriteFrame>();
     private pokerViewPrefab: Prefab = null!;
-    private pokerNumbers: number[] = [];
-    private tempPokerNumbers: number[] = [];
-    private usePokers = new Map<number, Poker>();
+    private pokerNumbers: number[] = [
+        101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113
+        , 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213
+        , 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313
+        , 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413
+        , 516, 617
+    ];
+    private pokers: Poker[] = [];
+    private inUsePokers: Poker[] = [];
     private selfPokers = new Map<number, Poker>();
     private lastPokers = new Map<number, Poker>();
     private nextPokers = new Map<number, Poker>();
-    private selfXPos = -400;
-    private selfYPos = 0;
+    @property({type: Button, visible: true})
+    private readyButton: Button = null!;
 
     onLoad() {
         console.log("onLoad time=" + new Date().getTime());
@@ -28,12 +34,19 @@ export class Game extends Component {
         });
     }
 
+    private readyButtonClick() {
+        console.log("readyButtonClick");
+        this.sendPoker();
+        this.setLandlord(0);
+        this.showPoker();
+    }
+
     private onLoadPokerAtlas() {
         this.gameBundle.loadDir("pokers", SpriteFrame, (err, pokers: SpriteFrame[]) => {
             console.log("load poker success. err=" + err + ";pokers=" + pokers.length);
             for (let i = 0; i < pokers.length; i++) {
                 const poker = pokers[i];
-                this.pokers.set(poker.name, poker);
+                this.pokerFrames.set(poker.name, poker);
             }
             this.onLoadPokerPrefab();
         });
@@ -49,54 +62,85 @@ export class Game extends Component {
 
     private enterGame() {
         console.log("enterGame time=" + new Date().getTime());
-        this.node.addComponent(PokerFactory).init(this.pokers, this.pokerViewPrefab);
-        this.initPokerNumber();
-        this.initPoker();
-        this.sendPoker();
-        this.setLandlord(0);
-        this.sortPoker();
+        this.node.addComponent(PokerFactory).init(this.pokerFrames, this.pokerViewPrefab);
+        this.pokerNumbers.forEach((pokerNumber: number) => {
+            this.pokers.push(PokerFactory.instance.createPoker(pokerNumber));
+        });
     }
 
-    private sortPoker() {
-        const selfPokers: Poker[] = [];
-        this.selfPokers.forEach((value, key, map) => {
-            selfPokers.push(value);
-        })
-        selfPokers.sort((a, b) => {
-            let valueA: number = a.pokerValue() % 100;
-            let valueB: number = b.pokerValue() % 100;
-            if (valueA == 1 || valueA == 2) {
-                valueA += 15;
-                console.log("a=" + valueA);
-            }
-            if (valueB == 1 || valueB == 2) {
-                valueB += 15;
-                console.log("b=" + valueB);
-            }
-            if (valueA == valueB) {
-                return 0;
-            } else if (valueA > valueB) {
-                return -1;
-            } else {
-                return 1;
-            }
-        });
-        this.selfPokers.clear();
-        selfPokers.forEach((poker: Poker) => {
-            this.selfPokers.set(poker.pokerValue(), poker);
-        })
+    private showPoker() {
+        this.selfPokers = this.sortPoker(this.selfPokers);
         let tempZIndex = 100;
+        let selfXPos = -400;
+        let selfYPos = -400;
         this.selfPokers.forEach((value, key, map) => {
             value.node.active = true;
             value.showValue();
-            if (value.pokerValue() == 518 || value.pokerValue() == 519) {
-                value.node.setPosition(this.selfXPos, this.selfYPos + 3);
+            if (value.pokerValue() == 516 || value.pokerValue() == 517) {
+                value.node.setPosition(selfXPos, selfYPos + 3);
             } else {
-                value.node.setPosition(this.selfXPos, this.selfYPos);
+                value.node.setPosition(selfXPos, selfYPos);
             }
-            this.selfXPos += 48;
+            selfXPos += 48;
             value.node.setSiblingIndex(tempZIndex++);
+        });
+        tempZIndex = 100;
+        selfXPos = -700;
+        selfYPos = 200;
+        let lastIndex = 0;
+        this.lastPokers = this.sortPoker(this.lastPokers);
+        this.lastPokers.forEach((value, key, map) => {
+            value.node.active = true;
+            value.showValue();
+            if (value.pokerValue() == 518 || value.pokerValue() == 519) {
+                value.node.setPosition(selfXPos, selfYPos - 3);
+            } else {
+                value.node.setPosition(selfXPos, selfYPos);
+            }
+            selfXPos += 48;
+            value.node.setSiblingIndex(tempZIndex++);
+            if (lastIndex++ == 10) {
+                selfYPos = 140;
+                selfXPos = -700;
+            }
+        });
+
+        tempZIndex = 100;
+        selfXPos = 200;
+        selfYPos = 200;
+        let nextIndex = 0;
+        this.nextPokers = this.sortPoker(this.nextPokers);
+        this.nextPokers.forEach((value, key, map) => {
+            value.node.active = true;
+            value.showValue();
+            if (value.pokerValue() == 518 || value.pokerValue() == 519) {
+                value.node.setPosition(selfXPos, selfYPos - 3);
+            } else {
+                value.node.setPosition(selfXPos, selfYPos);
+            }
+            selfXPos += 48;
+            value.node.setSiblingIndex(tempZIndex++);
+            if (nextIndex++ == 10) {
+                selfYPos = 140;
+                selfXPos = 200;
+            }
+        });
+    }
+
+    private sendPoker() {
+        this.selfPokers.clear();
+        this.lastPokers.clear();
+        this.nextPokers.clear();
+        this.inUsePokers = [];
+        this.pokers.forEach((poker: Poker) => {
+            this.inUsePokers.push(poker);
         })
+        for (let i = 0; i < 3; i++) {
+            this.inUsePokers.sort(this.randomPoker);
+        }
+        for (let i = 0; i < 51; i++) {
+            this.sendPokerByNumber(i % 3);
+        }
     }
 
     private setLandlord(landlord: number) {
@@ -105,32 +149,8 @@ export class Game extends Component {
         }
     }
 
-    private sendPoker() {
-        this.tempPokerNumbers = [];
-        this.pokerNumbers.forEach((pokerNumber: number) => {
-            this.tempPokerNumbers.push(pokerNumber);
-        });
-        this.tempPokerNumbers.sort((a: number, b: number) => {
-            let tempInt: number = Math.random() * 9;
-            if (tempInt < 3) {
-                return -1;
-            } else if (tempInt < 6) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
-        for (let i = 0; i < 3; i++) {
-            for (let j = 0; j < 17; j++) {
-                this.sendPokerByNumber(i);
-            }
-        }
-    }
-
     private sendPokerByNumber(userNumber: number) {
-        let tempPokerNumber = this.tempPokerNumbers.pop();
-        let tempPoker = this.usePokers.get(tempPokerNumber);
-        this.usePokers.delete(tempPokerNumber);
+        let tempPoker: Poker = this.inUsePokers.pop();
         switch (userNumber) {
             case 1:
                 this.nextPokers.set(tempPoker.pokerValue(), tempPoker);
@@ -142,30 +162,47 @@ export class Game extends Component {
                 this.selfPokers.set(tempPoker.pokerValue(), tempPoker);
                 break;
         }
-
     }
 
-    private initPoker() {
-        this.selfXPos = -400;
-        this.selfYPos = 0;
-        this.usePokers.clear();
-        this.selfPokers.clear();
-        this.lastPokers.clear();
-        this.nextPokers.clear();
-        this.pokerNumbers.forEach((pokerNumber: number) => {
-            this.usePokers.set(pokerNumber, PokerFactory.instance.createPoker(pokerNumber));
-        });
-    }
-
-    private initPokerNumber() {
-        for (let i = 1; i < 5; i++) {
-            for (let j = 1; j < 14; j++) {
-                this.pokerNumbers.push(i * 100 + j);
+    private sortPoker(pokers: Map<number, Poker>) {
+        const result = new Map<number, Poker>();
+        const tempPokers: Poker[] = [];
+        pokers.forEach((value, key, map) => {
+            tempPokers.push(value);
+        })
+        tempPokers.sort((a: Poker, b: Poker) => {
+            let valueA: number = a.pokerValue() % 100;
+            let valueB: number = b.pokerValue() % 100;
+            if (valueA == 1 || valueA == 2) {
+                valueA += 13;
             }
-        }
-        this.pokerNumbers.push(518);
-        this.pokerNumbers.push(519);
+            if (valueB == 1 || valueB == 2) {
+                valueB += 13;
+            }
+            if (valueA == valueB) {
+                return 0;
+            } else if (valueA > valueB) {
+                return -1;
+            } else {
+                return 1;
+            }
+        });
+        tempPokers.forEach((poker: Poker) => {
+            result.set(poker.pokerValue(), poker);
+        })
+        return result;
     }
+
+    private randomPoker(a: Poker, b: Poker) {
+        let tempInt: number = Math.random() * 9;
+        if (tempInt < 3) {
+            return -1;
+        } else if (tempInt < 6) {
+            return 1;
+        } else {
+            return 0;
+        }
+    };
 
 }
 
