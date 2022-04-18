@@ -9,6 +9,7 @@ export class UserInfo extends Component {
     private userName: string = null!;
     private lessTime: number = null!;
     private havePoker: number = null!;
+    private userType: number = null!;
     private userHead: SpriteFrame = null!;
     private head_image: Sprite = null!;
     private user_name: Label = null!;
@@ -26,6 +27,7 @@ export class UserInfo extends Component {
         if (userName.length >= 5) {
             userName = userName.substr(0, 5) + "...";
         }
+        this.userType = userType;
         this.userName = userName;
         this.lessTime = lessTime;
         this.havePoker = havePoker;
@@ -35,21 +37,42 @@ export class UserInfo extends Component {
 
         this.clock_left = this.node.getChildByName("clock_left").getComponent(Sprite);
         this.clock_left_text = this.node.getChildByName("clock_left").getChildByName("clock_text").getComponent(Label);
-        this.clock_left_text.string = "" + lessTime;
         this.clock_right = this.node.getChildByName("clock_right").getComponent(Sprite);
         this.clock_right_text = this.node.getChildByName("clock_right").getChildByName("clock_text").getComponent(Label);
-        this.clock_right_text.string = "" + lessTime;
-
         this.less_poker_left = this.node.getChildByName("less_poker_left").getComponent(Sprite);
+
         this.less_poker_left_text = this.node.getChildByName("less_poker_left").getChildByName("less_poker_text").getComponent(Label);
-        this.less_poker_left_text.string = "" + havePoker;
         this.less_poker_right = this.node.getChildByName("less_poker_right").getComponent(Sprite);
         this.less_poker_right_text = this.node.getChildByName("less_poker_right").getChildByName("less_poker_text").getComponent(Label);
-        this.less_poker_right_text.string = "" + havePoker;
 
         this.head_image = this.node.getChildByName("head_back").getChildByName("head_image").getComponent(Sprite);
         this.head_image.spriteFrame = userHead;
-        switch (userType) {
+        this.updateUI(lessTime, havePoker);
+    }
+
+
+    public updateUI(lessTime: number, havePoker: number) {
+        this.lessTime = lessTime;
+        this.havePoker = havePoker;
+        if (this.lessTime == 0) {
+            this.clock_right.node.active = false;
+            this.clock_left.node.active = false;
+        } else {
+            this.clock_right.node.active = true;
+            this.clock_left.node.active = true;
+        }
+        if (this.havePoker < 1) {
+            this.less_poker_left.node.active = false;
+            this.less_poker_right.node.active = false;
+        } else {
+            this.less_poker_left.node.active = true;
+            this.less_poker_right.node.active = true;
+        }
+        this.clock_left_text.string = "" + this.lessTime;
+        this.clock_right_text.string = "" + this.lessTime;
+        this.less_poker_left_text.string = "" + this.havePoker;
+        this.less_poker_right_text.string = "" + this.havePoker;
+        switch (this.userType) {
             case 1:
                 this.node.setPosition(-800, 200);
                 this.clock_left.node.active = false;
@@ -63,12 +86,12 @@ export class UserInfo extends Component {
             default:
                 this.node.setPosition(-700, -400);
                 this.clock_left.node.active = false;
+                this.clock_right.node.active = false;
                 this.less_poker_left.node.active = false;
                 this.less_poker_right.node.active = false;
                 break;
         }
     }
-
 
 }
 

@@ -1,4 +1,15 @@
-import {_decorator, Component, assetManager, AssetManager, Prefab, SpriteFrame, Button, director} from 'cc';
+import {
+    _decorator,
+    Component,
+    assetManager,
+    AssetManager,
+    Prefab,
+    SpriteFrame,
+    Button,
+    director,
+    Sprite,
+    Label
+} from 'cc';
 import {PokerFactory} from "./PokerFactory";
 import {Poker} from "./Poker";
 import {UserInfoFactory} from "./UserInfoFactory";
@@ -30,24 +41,67 @@ export class Game extends Component {
     private lastUserInfo: UserInfo = null!;
     private nextUserInfo: UserInfo = null!;
     @property({type: Button, visible: true})
-    private readyButton: Button = null!;
+    private leftButton: Button = null!;
+    @property({type: Button, visible: true})
+    private rightButton: Button = null!;
+    @property({type: Sprite, visible: true})
+    private clock: Sprite = null!;
+    @property({type: Label, visible: true})
+    private clockText: Label = null!;
+    @property({type: Label, visible: true})
+    private leftButtonText: Label = null!;
+    @property({type: Label, visible: true})
+    private rightButtonText: Label = null!;
+    private gameState = 3;                  // 0 轮到我 / 1 轮到下家 /  2 轮到上家 / 3 等待开始(未准备) / 4 等待开始(已准备) / 5 发牌中 / 6 游戏失败结束 / 7 游戏胜利结束
+    private lastGameState = 3;
+    private lessTime = -1;                  // 当前出牌者剩余出牌时间
+    private currentPokers: Poker[] = [];    // 当前出的牌
+    private currentPokerBelong: number = -1;    // 最后出牌者
+    private landlord: number = -1;          // 地主 0 我 / 1 下家 / 2 上家
 
     private returnButtonClick() {
         director.loadScene("Launch");
     }
 
-    private readyButtonClick() {
-        console.log("readyButtonClick");
-        this.sendPoker();
-        this.setLandlord(Math.round(Math.random() * 3));
-        this.showPoker();
+    private leftButtonClick() {
+        console.log("leftButtonClick");
+        this.lastGameState = this.gameState;
+        if (this.gameState == 3) {
+            this.gameState = 4;
+            this.leftButtonText.string = "取消准备";
+            this.rightButton.node.active = true;
+            this.rightButtonText.string = "开始";
+        } else if (this.gameState == 4) {
+            this.gameState = 3;
+            this.leftButtonText.string = "准备";
+            this.rightButton.node.active = false;
+        }
+        this.updateUI();
     }
 
-    private restartButtonClick() {
-        console.log("restartButtonClick");
+    private rightButtonClick() {
+        console.log("rightButtonClick");
+        if (this.gameState == 0) {
+            this.playPoker();
+        } else if (this.gameState == 4) {
+            this.gameState = 5;
+            this.leftButton.node.active = true;
+            this.rightButton.node.active = true;
+            this.leftButtonText.string = "要不起";
+            this.rightButtonText.string = "出牌";
+            this.restartGame();
+            this.lastGameState = this.gameState;
+            this.gameState = this.landlord;
+        }
+    }
+
+    private restartGame() {
         this.sendPoker();
-        this.setLandlord(Math.round(Math.random() * 3));
-        this.showPoker();
+        this.landlord = Math.round(Math.random() * 2);
+        this.setLandlord(this.landlord);
+        this.selfUserInfo.updateUI(0, this.selfPokers.length);
+        this.nextUserInfo.updateUI(0, this.nextPokers.length);
+        this.lastUserInfo.updateUI(0, this.lastPokers.length);
     }
 
     onLoad() {
@@ -95,20 +149,94 @@ export class Game extends Component {
 
     private enterGame() {
         console.log("enterGame time=" + new Date().getTime());
+        this.clock.node.active = false;
+        this.rightButton.node.active = false;
         this.node.addComponent(PokerFactory).init(this.pokerFrames, this.pokerPrefabs.get("prefab/PokerView"));
         this.pokerNumbers.forEach((pokerNumber: number) => {
             this.pokers.push(PokerFactory.instance.createPoker(pokerNumber));
         });
         this.node.addComponent(UserInfoFactory).init(this.pokerPrefabs.get("prefab/UserInfo"));
-        this.selfUserInfo = UserInfoFactory.instance.createUserInfo(0,"testUserName1", 5, 6, this.headFrames.get("head_4"));
-        this.lastUserInfo = UserInfoFactory.instance.createUserInfo(1,"testUserName2", 7, 8, this.headFrames.get("head_2"));
-        this.nextUserInfo = UserInfoFactory.instance.createUserInfo(2,"testUserName3", 9, 10, this.headFrames.get("head_3"));
+        this.selfUserInfo = UserInfoFactory.instance.createUserInfo(0, "testUserName1", 0
+            , this.selfPokers.length, this.headFrames.get("head_4"));
+        this.lastUserInfo = UserInfoFactory.instance.createUserInfo(1, "testUserName2", 0
+            , this.lastPokers.length, this.headFrames.get("head_2"));
+        this.nextUserInfo = UserInfoFactory.instance.createUserInfo(2, "testUserName3", 0
+            , this.nextPokers.length, this.headFrames.get("head_3"));
+        this.schedule(this.updateUI, 1);
+    }
+
+    private updateUI() {
+        console.log("gameState=" + this.gameState);
+        if (this.lastGameState != this.gameState) {
+            if (this.gameState == 0 || this.gameState == 1 || this.gameState == 2) {
+                this.lessTime = 15;
+                if (this.lastGameState == 0) {
+                    this.clock.node.active = false;
+                }
+            }
+            this.lastGameState = this.gameState;
+        }
+        switch (this.gameState) {
+            case 0:
+                if (this.lessTime >= 0) {
+                    if (this.lessTime == 0) {
+                        this.gameState = 1;
+                        this.lessTime = 15;
+                        this.clock.node.active = false;
+                        this.selfUserInfo.updateUI(0, this.selfPokers.length);
+                    } else {
+                        if (!this.clock.node.active) {
+                            this.clock.node.active = true;
+                        }
+                        this.clockText.string = "" + this.lessTime;
+                        this.selfUserInfo.updateUI(this.lessTime--, this.selfPokers.length);
+                    }
+                }
+                break;
+            case 1:
+                if (this.lessTime >= 0) {
+                    if (this.lessTime == 0) {
+                        this.gameState = 2;
+                        this.lessTime = 15;
+                        this.nextUserInfo.updateUI(0, this.nextPokers.length);
+                    } else {
+                        this.nextUserInfo.updateUI(this.lessTime--, this.nextPokers.length);
+                    }
+                }
+                break;
+            case 2:
+                if (this.lessTime >= 0) {
+                    if (this.lessTime == 0) {
+                        this.gameState = 0;
+                        this.lessTime = 15;
+                        this.lastUserInfo.updateUI(0, this.lastPokers.length);
+                    } else {
+                        this.lastUserInfo.updateUI(this.lessTime--, this.lastPokers.length);
+                    }
+                }
+                break;
+        }
+    }
+
+    private playPoker() {
+        this.gameState = 1;
+        this.updateUI();
     }
 
     private showPoker() {
-        this.commonShowPoker(this.selfPokers, -450, -400, 20);
-        this.commonShowPoker(this.lastPokers, -550, 200, 10);
-        this.commonShowPoker(this.nextPokers, 150, 200, 10);
+        this.showSelfScope(this.selfPokers);
+    }
+
+    private showSelfScope(pokers: Poker[]) {
+        this.commonShowPoker(pokers, -450, -400, 21);
+    }
+
+    private showLastScope(pokers: Poker[]) {
+        this.commonShowPoker(pokers, -550, 200, 10);
+    }
+
+    private showNextScope(pokers: Poker[]) {
+        this.commonShowPoker(pokers, 150, 200, 10);
     }
 
     private commonShowPoker(pokers: Poker[], startXPos: number, startYPos: number, maxIndex: number) {
@@ -164,6 +292,7 @@ export class Game extends Component {
         for (let i = 0; i < 51; i++) {
             this.sendPokerByNumber(i % 3);
         }
+        this.showSelfScope(this.selfPokers);
     }
 
     private setLandlord(landlord: number) {
@@ -188,7 +317,7 @@ export class Game extends Component {
     }
 
     private randomPoker(a: Poker, b: Poker) {
-        let tempInt: number = Math.random() * 9;
+        let tempInt: number = Math.round(Math.random() * 8);
         if (tempInt < 3) {
             return -1;
         } else if (tempInt < 6) {

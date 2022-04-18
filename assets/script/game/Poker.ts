@@ -10,6 +10,7 @@ export class Poker extends Component {
     private backSp: SpriteFrame;
     private valueSp: SpriteFrame;
     private sprite: Sprite = null!;
+    private check: boolean = false;
 
     public init(value: number, backSp: SpriteFrame, valueSp: SpriteFrame) {
         Poker.instance = this;
@@ -20,6 +21,14 @@ export class Poker extends Component {
         if (this.valueSp.name == "dw" || this.valueSp.name == "xw") {
             this.sprite.node.setScale(0.87, 0.87);
         }
+        this.node.on(Node.EventType.TOUCH_START, function (sx: number, sy: number) {
+            this.check = !this.check;
+            if (this.check) {
+                this.node.setPosition(this.node.position.x, this.node.position.y + 20);
+            } else {
+                this.node.setPosition(this.node.position.x, this.node.position.y - 20);
+            }
+        }, this);
     }
 
     public showBackground() {
@@ -32,6 +41,10 @@ export class Poker extends Component {
 
     public pokerValue() {
         return this.value;
+    }
+
+    public checkValue() {
+        return this.check;
     }
 
 }
