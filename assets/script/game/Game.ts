@@ -64,6 +64,9 @@ export class Game extends Component {
     private currentPokers: Poker[] = [];    // 当前出的牌
     private currentPokerBelong: number = -1;    // 最后出牌者
     private landlord: number = -1;          // 地主 0 我 / 1 下家 / 2 上家
+    private selfPokerUtils: PokerUtils = null!;
+    private nextPokerUtils: PokerUtils = null!;
+    private lastPokerUtils: PokerUtils = null!;
 
     private returnButtonClick() {
         director.loadScene("Launch");
@@ -94,11 +97,15 @@ export class Game extends Component {
         this.sendPoker();
         // this.landlord = Math.round(Math.random() * 2);
         this.landlord = 0;
+        this.currentPokerBelong = this.landlord;
         this.setLandlord(this.landlord);
         this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
         this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
         this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
         this.showSelfScope(this.selfPokers);
+        this.selfPokerUtils = new PokerUtils(0, this.selfPokers);
+        this.nextPokerUtils = new PokerUtils(1, this.nextPokers);
+        this.lastPokerUtils = new PokerUtils(2, this.lastPokers);
     }
 
     onLoad() {
@@ -163,7 +170,6 @@ export class Game extends Component {
     }
 
     private updateUI() {
-        console.log("gameState=" + this.gameState);
         if (this.lastGameState != this.gameState) {
             let tempGameState = this.lastGameState;
             this.lastGameState = this.gameState;
@@ -234,10 +240,11 @@ export class Game extends Component {
             case 0:
                 if (this.lessTime >= 0) {
                     if (this.lessTime == 0) {
-                        this.gameState = 1;
-                        this.lessTime = 15;
-                        this.clock.node.active = false;
-                        this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
+                        if (this.currentPokerBelong == 0) {
+                            this.commonPlayPoker(0, [this.selfPokers[this.selfPokers.length - 1]]);
+                        } else {
+                            this.nextPlayer();
+                        }
                     } else {
                         if (!this.clock.node.active) {
                             this.clock.node.active = true;
@@ -249,10 +256,26 @@ export class Game extends Component {
                 break;
             case 1:
                 if (this.lessTime >= 0) {
+                    if (this.lessTime == 10) {
+                        if (this.currentPokerBelong == 2) {
+                            this.nextPlayer();
+                            return;
+                        }
+                        if (this.currentPokerBelong == 1) {
+                            this.commonPlayPoker(1, [this.nextPokers[this.nextPokers.length - 1]]);
+                            return;
+                        }
+                        let canPlay: Poker[] = this.nextPokerUtils.getPlay(this.currentPokers);
+                        if (canPlay != null) {
+                            this.commonPlayPoker(1, canPlay);
+                            return;
+                        } else {
+                            this.nextPlayer();
+                            return;
+                        }
+                    }
                     if (this.lessTime == 0) {
-                        this.gameState = 2;
-                        this.lessTime = 15;
-                        this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
+                        this.nextPlayer();
                     } else {
                         this.nextUserInfo.updateUI(this.lessTime--, this.nextPokers.length, this.landlord == 1);
                     }
@@ -260,14 +283,50 @@ export class Game extends Component {
                 break;
             case 2:
                 if (this.lessTime >= 0) {
+                    if (this.lessTime == 10) {
+                        if (this.currentPokerBelong == 1) {
+                            this.nextPlayer();
+                            return;
+                        }
+                        if (this.currentPokerBelong == 2) {
+                            this.commonPlayPoker(2, [this.lastPokers[this.lastPokers.length - 1]]);
+                            return;
+                        }
+                        let canPlay: Poker[] = this.lastPokerUtils.getPlay(this.currentPokers);
+                        if (canPlay != null) {
+                            this.commonPlayPoker(2, canPlay);
+                            return;
+                        } else {
+                            this.nextPlayer();
+                            return;
+                        }
+                    }
                     if (this.lessTime == 0) {
-                        this.gameState = 0;
-                        this.lessTime = 15;
-                        this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
+                        this.nextPlayer();
                     } else {
                         this.lastUserInfo.updateUI(this.lessTime--, this.lastPokers.length, this.landlord == 2);
                     }
                 }
+                break;
+        }
+    }
+
+    private nextPlayer() {
+        this.lessTime = 15;
+        switch (this.gameState) {
+            case 0:
+                this.clock.node.active = false;
+                this.gameState = 1;
+                this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
+                break;
+            case 1:
+                this.gameState = 2;
+                this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
+                break;
+            case 2:
+                this.gameState = 0;
+                this.clock.node.active = true;
+                this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
                 break;
         }
     }
@@ -282,12 +341,32 @@ export class Game extends Component {
         this.commonPlayPoker(0, choosePokers);
     }
 
-    private commonPlayPoker(playUser: number, choosePokers: Poker[]) {
+    private commonPlayPoker(playUser: number, choosePokers: Poker[]): boolean {
         const pokerType = PokerUtils.getPokerType(choosePokers);
         if (pokerType == null) {
-            return;
+            return false;
         }
-        console.log(pokerType.getType() + ":" + pokerType.getSort());
+        console.log(playUser + " play " + pokerType.getType() + ";sort=" + pokerType.getSort());
+        const currentPokerType: PokerType = PokerUtils.getPokerType(this.currentPokers);
+        if (currentPokerType != null && this.currentPokerBelong != playUser) {
+            console.log("last play " + currentPokerType.getType() + ";sort=" + currentPokerType.getSort());
+            if (!PokerUtils.canPlay(pokerType, currentPokerType)) {
+                return false;
+            }
+        }
+        let selfPoker = "";
+        this.selfPokers.forEach((poker: Poker) => {
+            selfPoker += (poker.realValue() + ",");
+        });
+        let nextPoker = "";
+        this.nextPokers.forEach((poker: Poker) => {
+            nextPoker += (poker.realValue() + ",");
+        });
+        let lastPoker = "";
+        this.lastPokers.forEach((poker: Poker) => {
+            lastPoker += (poker.realValue() + ",");
+        });
+
         for (let i = 0; i < this.currentPokers.length; i++) {
             this.currentPokers[i].node.active = false;
         }
@@ -298,8 +377,8 @@ export class Game extends Component {
                 });
                 this.showNextScope(choosePokers);
                 this.nextUserInfo.updateUI(0, this.nextPokers.length, this.landlord == 1);
+                this.nextPokerUtils.updatePokerMap(this.nextPokers);
                 this.currentPokerBelong = 1;
-                this.gameState = 2;
                 break;
             case 2:
                 choosePokers.forEach((poker: Poker) => {
@@ -307,8 +386,8 @@ export class Game extends Component {
                 });
                 this.showLastScope(choosePokers);
                 this.lastUserInfo.updateUI(0, this.lastPokers.length, this.landlord == 2);
+                this.lastPokerUtils.updatePokerMap(this.lastPokers);
                 this.currentPokerBelong = 2;
-                this.gameState = 0;
                 break;
             default:
                 choosePokers.forEach((poker: Poker) => {
@@ -317,12 +396,15 @@ export class Game extends Component {
                 this.showSelfPlayScope(choosePokers);
                 this.showSelfScope(this.selfPokers);
                 this.selfUserInfo.updateUI(0, this.selfPokers.length, this.landlord == 0);
+                this.selfPokerUtils.updatePokerMap(this.selfPokers);
                 this.currentPokerBelong = 0;
-                this.gameState = 1;
                 break;
         }
+        console.log("selfPoker=" + selfPoker);
+        console.log("nextPoker=" + nextPoker);
+        console.log("lastPoker=" + lastPoker);
         this.currentPokers = choosePokers;
-        this.lessTime = 15;
+        this.nextPlayer();
         this.updateUI();
     }
 
