@@ -79,6 +79,8 @@ export class Game extends Component {
             this.gameState = 4;
         } else if (this.gameState == 4) {
             this.gameState = 3;
+        } else if (this.gameState == 0) {
+            this.nextPlayer();
         }
         this.updateUI();
     }
