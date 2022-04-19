@@ -14,6 +14,8 @@ import {PokerFactory} from "./PokerFactory";
 import {Poker} from "./Poker";
 import {UserInfoFactory} from "./UserInfoFactory";
 import {UserInfo} from "./UserInfo";
+import {PokerUtils} from "./PokerUtils";
+import {PokerType} from "./PokerType";
 
 const {ccclass, property} = _decorator;
 
@@ -247,10 +249,6 @@ export class Game extends Component {
                 break;
             case 1:
                 if (this.lessTime >= 0) {
-                    if (this.lessTime == 13) {
-                        this.commonPlayPoker(1, [this.nextPokers[0]]);
-                        return;
-                    }
                     if (this.lessTime == 0) {
                         this.gameState = 2;
                         this.lessTime = 15;
@@ -262,10 +260,6 @@ export class Game extends Component {
                 break;
             case 2:
                 if (this.lessTime >= 0) {
-                    if (this.lessTime == 13) {
-                        this.commonPlayPoker(2, [this.lastPokers[this.lastPokers.length - 1]]);
-                        return;
-                    }
                     if (this.lessTime == 0) {
                         this.gameState = 0;
                         this.lessTime = 15;
@@ -289,9 +283,11 @@ export class Game extends Component {
     }
 
     private commonPlayPoker(playUser: number, choosePokers: Poker[]) {
-        if (choosePokers.length == 0) {
+        const pokerType = PokerUtils.getPokerType(choosePokers);
+        if (pokerType == null) {
             return;
         }
+        console.log(pokerType.getType() + ":" + pokerType.getSort());
         for (let i = 0; i < this.currentPokers.length; i++) {
             this.currentPokers[i].node.active = false;
         }
@@ -350,23 +346,7 @@ export class Game extends Component {
         if (pokers.length == 0) {
             return;
         }
-        pokers.sort((a: Poker, b: Poker) => {
-            let valueA: number = a.pokerValue() % 100;
-            let valueB: number = b.pokerValue() % 100;
-            if (valueA == 1 || valueA == 2) {
-                valueA += 13;
-            }
-            if (valueB == 1 || valueB == 2) {
-                valueB += 13;
-            }
-            if (valueA == valueB) {
-                return 0;
-            } else if (valueA > valueB) {
-                return -1;
-            } else {
-                return 1;
-            }
-        });
+        pokers.sort(PokerUtils.sortPoker);
         let tempZIndex = 50;
         let selfXPos = startXPos;
         let selfYPos = startYPos;

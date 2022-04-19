@@ -43,6 +43,14 @@ export class Poker extends Component {
         return this.value;
     }
 
+    public realValue() {
+        let result: number = this.value % 100;
+        if (result == 1 || result == 2) {
+            result += 13;
+        }
+        return result;
+    }
+
     public checkValue() {
         return this.check;
     }
