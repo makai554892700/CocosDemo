@@ -19,6 +19,10 @@ export class PokerUtils {
         this.updatePokerMap(pokers);
     }
 
+    public getPokerMap() {
+        return this.pokerMap;
+    }
+
     public updatePokerMap(pokers: Poker[]) {
         this.pokerMap.clear();
         if (pokers == null) {
@@ -260,15 +264,20 @@ export class PokerUtils {
             if (array[i].realValue() == array[i + 1].realValue()
                 && array[i].realValue() == array[i + 2].realValue()) {
                 three.push(array[i]);
+                newArray.push(array[i]);
+                newArray.push(array[i + 1]);
+                newArray.push(array[i + 2]);
+                i += 2;
             }
-            newArray = newArray.concat(PokerUtils.removePokers(array, [array[i], array[i + 1], array[i + 2]]));
         }
-        if (three.length != 2) return -1;
         newArray = PokerUtils.removePokers(array, newArray);
+        if (three.length != 2 || newArray.length != 4) return -1;
+        newArray.sort(this.sortPoker);
         for (let i = 0; i < newArray.length - 1; i += 2) {
             if (newArray[i].realValue() !== newArray[i + 1].realValue()) return -1;
         }
         if (three[0].realValue() > 14) return -1;
+        three.sort(this.sortPoker);
         if (three[0].realValue() - 1 === three[1].realValue()) return three[0].realValue();
         return -1;
     }
